@@ -9,6 +9,7 @@ project(ekf_slam)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   nav_msgs
+  sensor_msgs
   roscpp
 )
 
@@ -196,3 +197,6 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+add_executable(predict src/predict.cpp)
+target_link_libraries(predict ${catkin_LIBRARIES})
