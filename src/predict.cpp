@@ -68,36 +68,35 @@ void joint_callback(const sensor_msgs::JointState &msg)
     current_state = msg;
 
     // Get wheel position difference
-    double left_dtheta, right_dtheta; // Number of radians passed since last instance
+    double left_dtheta, right_dtheta, left_ds, right_ds; // Number of radians/meters passed since last instance
     left_dtheta = get_joint_diff(current_state, old_state, left);
     right_dtheta = get_joint_diff(current_state, old_state, right);
+    left_ds = left_dtheta*WHEEL_RADIUS;
+    right_ds = right_dtheta*WHEEL_RADIUS;
+
+
 
     if (!first_time) // Don't execute this loop first time 
     {
-
-        // Get time diff
+        double ds = (right_ds + left_ds)/2;
+        double dtheta = (right_ds - left_ds)/WHEEL_DISTANCE;
         double dt = get_time_diff(current_state, old_state);
 
-
-        // Calculate new position from odometry
-        double v = trans_speed_from_wheeldistance(left_dtheta, right_dtheta, dt); // Get speed around ICC
-        double w = rot_speed_from_wheeldistance(left_dtheta, right_dtheta, dt); // Get rot speed around ICC
-        ROS_INFO("Speed v: %f", v);
-        ROS_INFO("Rot speed w: %f", w);
-
-        // Update values
-        if (abs(w) > 0.001)
-        { // Special clause when rotational speed is 0
-            x = x - v/w*sin(theta) + v/w*sin(theta + w*dt);
-            y = y + v/w*cos(theta) - v/w*cos(theta + w*dt);
-            theta = theta + w*dt;
-        } else {
-            x = x - v*dt*sin(theta) + v*dt*sin(theta + w*dt);
-            y = y + v*dt*cos(theta) - v*dt*cos(theta + w*dt);
-            theta = theta;
+        // Update values based on odometry
+        x = x + ds*cos(theta + dtheta/2);
+        y = y + ds*sin(theta + dtheta/2);
+        theta = theta + dtheta;
+        // Adjust dtheta to be within -pi to pi interval
+        if (theta < -PI)
+        {
+            theta = PI;
+        } else if (theta > PI) {
+            theta = -PI;
         }
 
         ROS_INFO("Time passed: %f", dt);
+        ROS_INFO("dS: %f", ds);
+        ROS_INFO("dtheta: %f", dtheta);
         ROS_INFO("X: %f", x);
         ROS_INFO("Y: %f", y);
         ROS_INFO("Theta: %f", theta);
