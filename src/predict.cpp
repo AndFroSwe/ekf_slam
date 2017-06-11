@@ -52,6 +52,8 @@ int main(int argc, char *argv[])
 
 void joint_callback(const sensor_msgs::JointState &msg)
 {
+    static bool first_time = true; // Variable to remove first bad reading
+
     // enum for getting left and right
     // This is used for more intuitive indexing of joint state message
     typedef enum wheel_index {
@@ -67,13 +69,18 @@ void joint_callback(const sensor_msgs::JointState &msg)
     left_dtheta = get_joint_diff(current_state, old_state, left);
     right_dtheta = get_joint_diff(current_state, old_state, right);
 
-    // Get time diff
-    double dt = get_time_diff(current_state, old_state);
+    if (!first_time) // Don't execute this loop first time 
+    {
+        first_time = false;
 
-    // Get rotational speed
-    ROS_INFO("Time passed: %f", dt);
-    ROS_INFO("Left wheel speed: %f", left_dtheta/dt);
-    ROS_INFO("right wheel speed: %f", right_dtheta/dt);
+        // Get time diff
+        double dt = get_time_diff(current_state, old_state);
+
+        // Get rotational speed
+        ROS_INFO("Time passed: %f", dt);
+        ROS_INFO("Left wheel speed: %f", left_dtheta/dt);
+        ROS_INFO("right wheel speed: %f", right_dtheta/dt);
+    }
 }
 
 inline double get_joint_diff(const sensor_msgs::JointState &curr, const sensor_msgs::JointState &old, int i)
