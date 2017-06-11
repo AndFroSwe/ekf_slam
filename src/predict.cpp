@@ -14,6 +14,9 @@
 // Globals
 sensor_msgs::JointState old_state, current_state; // Save the joint state data. Need to be global for callback function
 double left_wheel_speed, right_wheel_speed; // Used for motion model
+double x = 0;
+double y = 0;
+double theta = 0;
 
 int main(int argc, char *argv[])
 {
@@ -48,7 +51,7 @@ int main(int argc, char *argv[])
     }
 
     return 0;
-}
+} // end main
 
 void joint_callback(const sensor_msgs::JointState &msg)
 {
@@ -71,28 +74,71 @@ void joint_callback(const sensor_msgs::JointState &msg)
 
     if (!first_time) // Don't execute this loop first time 
     {
-        first_time = false;
 
         // Get time diff
         double dt = get_time_diff(current_state, old_state);
 
-        // Get rotational speed
+
+        // Calculate new position from odometry
+        double v = trans_speed_from_wheeldistance(left_dtheta, right_dtheta, dt); // Get speed around ICC
+        double w = rot_speed_from_wheeldistance(left_dtheta, right_dtheta, dt); // Get rot speed around ICC
+        ROS_INFO("Speed v: %f", v);
+        ROS_INFO("Rot speed w: %f", w);
+
+        // Update values
+        if (abs(w) > 0.001)
+        { // Special clause when rotational speed is 0
+            x = x - v/w*sin(theta) + v/w*sin(theta + w*dt);
+            y = y + v/w*cos(theta) - v/w*cos(theta + w*dt);
+            theta = theta + w*dt;
+        } else {
+            x = x - v*dt*sin(theta) + v*dt*sin(theta + w*dt);
+            y = y + v*dt*cos(theta) - v*dt*cos(theta + w*dt);
+            theta = theta;
+        }
+
         ROS_INFO("Time passed: %f", dt);
-        ROS_INFO("Left wheel speed: %f", left_dtheta/dt);
-        ROS_INFO("right wheel speed: %f", right_dtheta/dt);
+        ROS_INFO("X: %f", x);
+        ROS_INFO("Y: %f", y);
+        ROS_INFO("Theta: %f", theta);
+        ROS_INFO("**************");
+
+    } else {
+        first_time = false;
+        // This is just temporary to give an estimate to x and y to start from.
+        // This should be expanded to take real position as first value.
+        x = 0;
+        y = 0;
+        theta = 0;
     }
-}
+} // end callback
 
 inline double get_joint_diff(const sensor_msgs::JointState &curr, const sensor_msgs::JointState &old, int i)
 {
+    // Help function for getting difference in joint position
     return (double) (curr.position[i] - old.position[i]);
 }
 
 inline double get_time_diff(const sensor_msgs::JointState &curr, const sensor_msgs::JointState &old)
 {
-
+    // Help function for getting dt from wheel status messages
     double curr_sec, old_sec; // Seconds for each state 
     curr_sec = curr.header.stamp.sec + curr.header.stamp.nsec*1e-9; // Convert time to seconds
     old_sec = old.header.stamp.sec + old.header.stamp.nsec*1e-9; // Convert time to seconds
     return (curr_sec - old_sec);
+}
+
+double trans_speed_from_wheeldistance(const double w_left, const double w_right, double dt)
+{
+    // Calculates momentary speed of vehicle based on wheel odometry of left and right wheels
+    // This is taken from kinematic model of vehicle
+    return ((w_left + w_right)*WHEEL_RADIUS/2/dt);
+}
+
+double rot_speed_from_wheeldistance(const double w_left, const double w_right, double dt)
+{
+    // Calculates momentary rotational speed of vehicle around Instantaneous Curvature Center
+    // based on rotated radians rotated since last time instance w_* and time passed dt [s]
+    // This is taken from kinematic model of vehicle
+    return (WHEEL_RADIUS/WHEEL_DISTANCE*(w_right - w_left)/dt);
 }
