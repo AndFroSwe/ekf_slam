@@ -199,4 +199,12 @@ include_directories(
 # catkin_add_nosetests(test)
 
 add_executable(predict src/predict.cpp)
-target_link_libraries(predict ${catkin_LIBRARIES})
+target_link_libraries(predict 
+    ${catkin_LIBRARIES}
+    )
+
+# This is to include the eigen library for matrix algebra. This might differ depending on the 
+# system.
+include_directories(
+    "/usr/include/eigen3/"
+    )

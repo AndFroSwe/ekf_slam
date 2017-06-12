@@ -18,6 +18,13 @@ double x = 0;
 double y = 0;
 double theta = 0;
 
+// Initiate the covariance matrices
+Eigen::Matrix3d P = Eigen::Matrix3d::Zero(); // Pose covariance
+Eigen::Matrix3d Q = Eigen::Matrix3d::Zero(); // Control covariance
+Eigen::Matrix3d Jx = Eigen::Matrix3d::Zero(); // Jacobian for pose
+Eigen::Matrix3d Ju = Eigen::Matrix3d::Zero(); // Jacobian for control
+
+
 int main(int argc, char *argv[])
 {
     // Parameters
@@ -40,6 +47,17 @@ int main(int argc, char *argv[])
     current_state.position.resize(2);
     current_state.position[0] = 0;
     current_state.position[1] = 0;
+
+    // Give values to covariance matrices
+    // State
+    P(0,0) = 0.1;
+    P(1,1) = 0.1;
+    P(2,2) = 0.1;
+
+    // Control
+    Q(0,0) = 0.1;
+    Q(1,1) = 0.1;
+    Q(2,2) = 0.1;
 
     // Main loop
     ros::Rate r(RATE); // Update rate
@@ -84,9 +102,12 @@ void joint_callback(const sensor_msgs::JointState &msg)
 
         // Update values based on odometry
         x = x + ds*cos(theta + dtheta/2);
+        //x = x + ds*cos(theta);
         y = y + ds*sin(theta + dtheta/2);
+        //y = y + ds*sin(theta);
         theta = theta + dtheta;
         // Adjust dtheta to be within -pi to pi interval
+        // This introduces truncation errors, works when time interval is small
         if (theta < -PI)
         {
             theta = PI;
@@ -139,5 +160,5 @@ double rot_speed_from_wheeldistance(const double w_left, const double w_right, d
     // Calculates momentary rotational speed of vehicle around Instantaneous Curvature Center
     // based on rotated radians rotated since last time instance w_* and time passed dt [s]
     // This is taken from kinematic model of vehicle
-    return (WHEEL_RADIUS/WHEEL_DISTANCE*(w_right - w_left)/dt);
+    return (-1)*(WHEEL_RADIUS/WHEEL_DISTANCE*(w_right - w_left)/dt);
 }

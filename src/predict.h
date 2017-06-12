@@ -5,7 +5,7 @@
 
 // Defs
 #define RATE 10 // Update rate of prediction node
-#define WHEEL_RADIUS 0.04 // Radius of wheels on vehicle
+#define WHEEL_RADIUS 0.035 // Radius of wheels on vehicle
 #define WHEEL_DISTANCE 0.23 // Radius of wheels on vehicle
 #define PI 3.141592654
 // Includes
@@ -15,6 +15,7 @@
 #include "sensor_msgs/JointState.h"
 // Generic
 #include <math.h>
+#include <Eigen/Dense>
 
 
 // Function prototypes
