@@ -20,9 +20,9 @@ double theta = 0;
 
 // Initiate the covariance matrices
 Eigen::Matrix3d P = Eigen::Matrix3d::Zero(); // Pose covariance
-Eigen::Matrix3d Q = Eigen::Matrix3d::Zero(); // Control covariance
+Eigen::Matrix2d Q = Eigen::Matrix2d::Zero(); // Control covariance
 Eigen::Matrix3d Jx = Eigen::Matrix3d::Zero(); // Jacobian for pose
-Eigen::Matrix3d Ju = Eigen::Matrix3d::Zero(); // Jacobian for control
+Eigen::MatrixXd Ju = Eigen::MatrixXd::Zero(3,2); // Jacobian for control
 
 
 int main(int argc, char *argv[])
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     // Control
     Q(0,0) = 0.1;
     Q(1,1) = 0.1;
-    Q(2,2) = 0.1;
+
 
     // Main loop
     ros::Rate r(RATE); // Update rate
@@ -114,6 +114,30 @@ void joint_callback(const sensor_msgs::JointState &msg)
         } else if (theta > PI) {
             theta = -PI;
         }
+
+        // Update covariances
+        // Precalculate values
+        double _s, _c;
+        _s = sin(theta + dtheta/2);
+        _c = cos(theta + dtheta/2);
+
+        // State
+        Jx(0,0) = 1;
+        Jx(1,1) = 1;
+        Jx(2,2) = 1;
+        Jx(0,2) = -ds*_s;
+        Jx(1,2) = ds*_c;
+
+        // Control
+        Ju(0,0) = _c;
+        Ju(0,1) = -ds/2*_s;
+        Ju(1,0) = _s;
+        Ju(1,1) = ds/2*_c;
+        Ju(2,0) = 0;
+        Ju(2,1) = 1;
+
+        // Make the update
+        P = Jx*P*Jx.transpose() + Ju*Q*Ju.transpose();
 
         ROS_INFO("Time passed: %f", dt);
         ROS_INFO("dS: %f", ds);
