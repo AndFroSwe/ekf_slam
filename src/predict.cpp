@@ -11,6 +11,7 @@
 
 #include "predict.h"
 
+
 // Globals
 sensor_msgs::JointState old_state, current_state; // Save the joint state data. Need to be global for callback function
 double left_wheel_speed, right_wheel_speed; // Used for motion model
@@ -24,12 +25,12 @@ Eigen::Matrix2d Q = Eigen::Matrix2d::Zero(); // Control covariance
 Eigen::Matrix3d Jx = Eigen::Matrix3d::Zero(); // Jacobian for pose
 Eigen::MatrixXd Ju = Eigen::MatrixXd::Zero(3,2); // Jacobian for control
 
-
 int main(int argc, char *argv[])
 {
     // Parameters
     const char node_name[] = "ekf_slam_prediction";
     const char joint_topic[] = "/joint_states"; // Topic to listen to for joint states
+    const char pub_topic[] = "/predicted_pose"; // Topic to publish predicted pose on 
 
     // Init ROS
     ros::init(argc, argv, node_name);
@@ -38,6 +39,9 @@ int main(int argc, char *argv[])
 
     // Create subscriber to states 
     ros::Subscriber joint_sub = n.subscribe(joint_topic, 1, joint_callback); // Subscribes to the latest joint state
+
+    // Create subscriber for predicted pose
+    ros::Publisher pose_pub = n.advertise<ekf_slam::Pose2DWithCovariance>(pub_topic, 1000);
 
     // Create empty joint state. Needed for first execution
     current_state.header.stamp = ros::Time::now(); // This isn't correct since time in message is Gazebo time. Who cares.
@@ -50,13 +54,13 @@ int main(int argc, char *argv[])
 
     // Give values to covariance matrices
     // State
-    P(0,0) = 0.1;
-    P(1,1) = 0.1;
-    P(2,2) = 0.1;
+    P(0,0) = 0.01;
+    P(1,1) = 0.01;
+    P(2,2) = 0.01;
 
     // Control
-    Q(0,0) = 0.1;
-    Q(1,1) = 0.1;
+    Q(0,0) = 0.01;
+    Q(1,1) = 0.01;
 
 
     // Main loop
@@ -64,6 +68,25 @@ int main(int argc, char *argv[])
     while(ros::ok())
     {
         ros::spinOnce(); // Get messages
+
+        // Add covariance and pose to a message
+        // We only work in 2D
+        ekf_slam::Pose2DWithCovariance msg;
+        msg.pose.x = x;
+        msg.pose.y = y;
+        msg.pose.theta = theta;
+        // Add covariance
+        Eigen::MatrixXd F = Eigen::MatrixXd::Zero(3, 3); // Conversion matrix into a 6x6 matrix
+        // Add all values from covariance matrix into covariance vector
+        // Matrix size is hard coded here
+        for (int i = 0; i < 3; ++i) {
+            for (int j = 0; j < 3; ++j) {
+                msg.covariance[j + i*3] = P(i,j);
+            }
+        }
+
+        // Publish
+        pose_pub.publish(msg);
 
         r.sleep();
     }
@@ -108,6 +131,7 @@ void joint_callback(const sensor_msgs::JointState &msg)
         theta = theta + dtheta;
         // Adjust dtheta to be within -pi to pi interval
         // This introduces truncation errors, works when time interval is small
+        // A better version would include including the truncated values
         if (theta < -PI)
         {
             theta = PI;
@@ -122,6 +146,7 @@ void joint_callback(const sensor_msgs::JointState &msg)
         _c = cos(theta + dtheta/2);
 
         // State
+        // 3x3
         Jx(0,0) = 1;
         Jx(1,1) = 1;
         Jx(2,2) = 1;
@@ -129,6 +154,7 @@ void joint_callback(const sensor_msgs::JointState &msg)
         Jx(1,2) = ds*_c;
 
         // Control
+        // 3x2
         Ju(0,0) = _c;
         Ju(0,1) = -ds/2*_s;
         Ju(1,0) = _s;
@@ -137,8 +163,11 @@ void joint_callback(const sensor_msgs::JointState &msg)
         Ju(2,1) = 1;
 
         // Make the update
+        // Matrix sizes
+        // 3x3*3x3*3x3 + 3x2*2x2*2x3
         P = Jx*P*Jx.transpose() + Ju*Q*Ju.transpose();
 
+        // Temp, just send infor to command line
         ROS_INFO("Time passed: %f", dt);
         ROS_INFO("dS: %f", ds);
         ROS_INFO("dtheta: %f", dtheta);
