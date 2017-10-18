@@ -1,29 +1,23 @@
-/*
- * TODO: Motion model
- * TODO: Time discrepancies
- */
-
-/*
- * EKF SLAM prediction step.
- * Takes old mean and covariance as input and outputs new estimated mean
- * and covariance. 
+/* File: predict.cpp
+ * Author: andfro
+ * Description: Prediction step of an EKF on a differential drive robot.
+ * This node uses the Eigen Matrix package for calculation.
  */
 
 #include "predict.h"
 
-
 // Globals
-sensor_msgs::JointState old_state, current_state; // Save the joint state data. Need to be global for callback function
-double left_wheel_speed, right_wheel_speed; // Used for motion model
+sensor_msgs::JointState old_state, current_state;   // Save the joint state data. Need to be global for callback function
+double left_wheel_speed, right_wheel_speed;         // Used for motion model
 double x = 0;
 double y = 0;
 double theta = 0;
 
 // Initiate the covariance matrices
-Eigen::Matrix3d P = Eigen::Matrix3d::Zero(); // Pose covariance
-Eigen::Matrix2d Q = Eigen::Matrix2d::Zero(); // Control covariance
-Eigen::Matrix3d Jx = Eigen::Matrix3d::Zero(); // Jacobian for pose
-Eigen::MatrixXd Ju = Eigen::MatrixXd::Zero(3,2); // Jacobian for control
+Eigen::Matrix3d P = Eigen::Matrix3d::Zero();        // Pose covariance
+Eigen::Matrix2d Q = Eigen::Matrix2d::Zero();        // Control covariance
+Eigen::Matrix3d Jx = Eigen::Matrix3d::Zero();       // Jacobian for pose
+Eigen::MatrixXd Ju = Eigen::MatrixXd::Zero(3,2);    // Jacobian for control
 
 int main(int argc, char *argv[])
 {
@@ -44,7 +38,7 @@ int main(int argc, char *argv[])
     ros::Publisher pose_pub = n.advertise<ekf_slam::Pose2DWithCovariance>(pub_topic, 1000);
 
     // Create empty joint state. Needed for first execution
-    current_state.header.stamp = ros::Time::now(); // This isn't correct since time in message is Gazebo time. Who cares.
+    current_state.header.stamp = ros::Time::now(); // This isn't correct since time in message is Gazebo time
     current_state.name.resize(2);
     current_state.name[0] = "left_dummy";
     current_state.name[1] = "right_dummy";
@@ -96,7 +90,7 @@ int main(int argc, char *argv[])
 
 void joint_callback(const sensor_msgs::JointState &msg)
 {
-    static bool first_time = true; // Variable to remove first bad reading
+    static bool first_time = true; // Variable to remove first bad reading. It's ugly but it works.
 
     // enum for getting left and right
     // This is used for more intuitive indexing of joint state message
@@ -168,13 +162,13 @@ void joint_callback(const sensor_msgs::JointState &msg)
         P = Jx*P*Jx.transpose() + Ju*Q*Ju.transpose();
 
         // Temp, just send infor to command line
-        ROS_INFO("Time passed: %f", dt);
-        ROS_INFO("dS: %f", ds);
-        ROS_INFO("dtheta: %f", dtheta);
-        ROS_INFO("X: %f", x);
-        ROS_INFO("Y: %f", y);
-        ROS_INFO("Theta: %f", theta);
-        ROS_INFO("**************");
+        //ROS_INFO("Time passed: %f", dt);
+        //ROS_INFO("dS: %f", ds);
+        //ROS_INFO("dtheta: %f", dtheta);
+        //ROS_INFO("X: %f", x);
+        //ROS_INFO("Y: %f", y);
+        //ROS_INFO("Theta: %f", theta);
+        //ROS_INFO("**************");
 
     } else {
         first_time = false;

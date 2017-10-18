@@ -13,8 +13,6 @@
 #include "ros/ros.h"
 #include "nav_msgs/Odometry.h"
 #include "sensor_msgs/JointState.h"
-#include "geometry_msgs/PoseWithCovariance.h"
-#include "tf/LinearMath/Quaternion.h"
 #include "ekf_slam/Pose2DWithCovariance.h"
 // Generic
 #include <math.h>
